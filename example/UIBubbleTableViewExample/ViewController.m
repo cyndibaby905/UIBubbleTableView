@@ -18,20 +18,30 @@
 #import "UIBubbleTableView.h"
 #import "UIBubbleTableViewDataSource.h"
 #import "NSBubbleData.h"
+#import "MessageInputView.h"
+#import "NSString+MessagesView.h"
+#import "ASIHTTPRequest.h"
+#import "NSString+URLEncoding.h"
 
-@interface ViewController ()
+@interface ViewController ()<UITextViewDelegate,NSXMLParserDelegate>
 {
     IBOutlet UIBubbleTableView *bubbleTable;
-    IBOutlet UIView *textInputView;
-    IBOutlet UITextField *textField;
-
+    
+    IBOutlet MessageInputView *textField;
+    BOOL isStartMessage_;
+    NSMutableString *messageData_;
     NSMutableArray *bubbleData;
 }
+@property (assign, nonatomic) CGFloat previousTextViewContentHeight;
+- (void)scrollToBottomAnimated:(BOOL)animated;
+- (void)loadConversationHistory;
+- (void)addMessageToSession:(NSBubbleData*) data needStore:(BOOL)stored;
+
 
 @end
 
 @implementation ViewController
-
+@synthesize previousTextViewContentHeight;
 - (void)viewDidLoad
 {
     [super viewDidLoad];
@@ -65,9 +75,12 @@
     //    - NSBubbleTypingTypeMe - shows "now typing" bubble on the right
     //    - NSBubbleTypingTypeNone - no "now typing" bubble
     
-    bubbleTable.typingBubble = NSBubbleTypingTypeSomebody;
     
     [bubbleTable reloadData];
+    
+    textField.textView.delegate = self;
+    textField.textView.returnKeyType = UIReturnKeyDone;
+    [textField.sendButton addTarget:self action:@selector(sayPressed:) forControlEvents:UIControlEventTouchUpInside];
     
     // Keyboard events
     
@@ -86,9 +99,20 @@
     [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardWillHideNotification object:nil];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardDidShowNotification object:nil];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardDidHideNotification object:nil];
-    
+}
+
+- (void)loadConversationHistory {
     
 }
+
+- (void)addMessageToSession:(NSBubbleData*) data needStore:(BOOL)stored {
+    [bubbleData addObject:data];
+    [bubbleTable reloadData];
+}
+
+
+
+
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
@@ -107,6 +131,67 @@
     return [bubbleData objectAtIndex:row];
 }
 
+#pragma mark - Text view delegate
+- (void)textViewDidBeginEditing:(UITextView *)textView
+{
+    [textView becomeFirstResponder];
+    self.previousTextViewContentHeight = textView.contentSize.height;
+    [self scrollToBottomAnimated:YES];
+}
+
+- (BOOL)textView:(UITextView *)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString *)text {
+    if ([text isEqualToString:@"\n"]) {
+        [self sayPressed:nil];
+        return NO;
+    }
+    return YES;
+}
+
+- (void)textViewDidChange:(UITextView *)textView
+{
+    if ([textView.text trimWhitespace].length) {
+        textField.sendButton.enabled = YES;
+    }
+    else {
+        textField.sendButton.enabled = NO;
+    }
+    CGFloat maxHeight = [MessageInputView maxHeight];
+    CGFloat textViewContentHeight = textView.contentSize.height;
+    CGFloat changeInHeight = textViewContentHeight - self.previousTextViewContentHeight;
+    
+    changeInHeight = (textViewContentHeight + changeInHeight >= maxHeight) ? 0.0f : changeInHeight;
+    
+    if(changeInHeight != 0.0f) {
+        [UIView animateWithDuration:0.25f animations:^{
+            
+            UIEdgeInsets insets = UIEdgeInsetsMake(0.0f, 0.0f, bubbleTable.contentInset.bottom + changeInHeight, 0.0f);
+            bubbleTable.contentInset = insets;
+            bubbleTable.scrollIndicatorInsets = insets;
+            
+            [self scrollToBottomAnimated:NO];
+            
+            CGRect inputViewFrame = textField.frame;
+            textField.frame = CGRectMake(0.0f,
+                                              inputViewFrame.origin.y - changeInHeight,
+                                              inputViewFrame.size.width,
+                                              inputViewFrame.size.height + changeInHeight);
+        } completion:^(BOOL finished) {
+            
+        }];
+        
+        self.previousTextViewContentHeight = MIN(textViewContentHeight, maxHeight);
+    }
+    
+    textField.sendButton.enabled = ([textView.text trimWhitespace].length > 0);
+}
+
+
+- (void)scrollToBottomAnimated:(BOOL)animated
+{
+    CGPoint bottomOffset = CGPointMake(0, bubbleTable.contentSize.height - bubbleTable.bounds.size.height);
+    [bubbleTable setContentOffset:bottomOffset animated:animated];
+}
+
 #pragma mark - Keyboard events
 
 - (void)keyboardWillShow:(NSNotification*)aNotification
@@ -122,12 +207,12 @@
     
     
     [UIView animateWithDuration:duration animations:^{
-        CGRect frame = textInputView.frame;
+        CGRect frame = textField.frame;
         frame.origin.y = self.view.frame.size.height - keyboardRect.size.height - frame.size.height;
-        textInputView.frame = frame;
+        textField.frame = frame;
         
         frame = bubbleTable.frame;
-        frame.size.height = self.view.frame.size.height - textInputView.frame.size.height - keyboardRect.size.height;
+        frame.size.height = self.view.frame.size.height - textField.frame.size.height - keyboardRect.size.height;
         
         bubbleTable.frame = frame;
     }];
@@ -138,13 +223,11 @@
 }
 
 - (void)keyboardDidHide:(NSNotification*)aNotification {
-    CGPoint bottomOffset = CGPointMake(0, bubbleTable.contentSize.height - bubbleTable.bounds.size.height);
-    [bubbleTable setContentOffset:bottomOffset animated:YES];
+    
 }
 
 - (void)keyboardDidShow:(NSNotification*)aNotification {
-    CGPoint bottomOffset = CGPointMake(0, bubbleTable.contentSize.height - bubbleTable.bounds.size.height);
-    [bubbleTable setContentOffset:bottomOffset animated:YES];
+   
 }
 
 
@@ -160,23 +243,16 @@
 	[UIView setAnimationCurve:curve];
     
     [UIView animateWithDuration:duration animations:^{
-        CGRect frame = textInputView.frame;
+        CGRect frame = textField.frame;
+        frame.size.height = 40.f;
         frame.origin.y = self.view.frame.size.height - frame.size.height;
-        textInputView.frame = frame;
+        textField.frame = frame;
         
         frame = bubbleTable.frame;
-        frame.size.height = self.view.frame.size.height -textInputView.frame.size.height;
+        frame.size.height = self.view.frame.size.height -textField.frame.size.height;
         bubbleTable.frame = frame;
         
     }];
-    
-    
-    
-    
-    
-    
-    
-    
     
     
 }
@@ -185,14 +261,83 @@
 
 - (IBAction)sayPressed:(id)sender
 {
-    bubbleTable.typingBubble = NSBubbleTypingTypeNobody;
+    NSString *inputtedData = [textField.textView.text trimWhitespace];
+    if (inputtedData.length) {
+        textField.sendButton.enabled = NO;
+        bubbleTable.typingBubble = NSBubbleTypingTypeNobody;
+        
+        NSBubbleData *sayBubble = [NSBubbleData dataWithText:inputtedData date:[NSDate dateWithTimeIntervalSinceNow:0] type:BubbleTypeMine];
+        bubbleTable.typingBubble = NSBubbleTypingTypeSomebody;
+        [self addMessageToSession:sayBubble needStore:YES];
 
-    NSBubbleData *sayBubble = [NSBubbleData dataWithText:textField.text date:[NSDate dateWithTimeIntervalSinceNow:0] type:BubbleTypeMine];
-    [bubbleData addObject:sayBubble];
-    [bubbleTable reloadData];
-    
-    textField.text = @"";
-    [textField resignFirstResponder];
+        
+        NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"http://www.pandorabots.com/pandora/talk-xml?botid=9e6134cc8e345ec6&input=%@",[inputtedData encodedURLParameterString]]];
+        
+        textField.textView.text = @"";
+        [textField.textView resignFirstResponder];
+        
+        __weak ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:url];
+        [request setCompletionBlock:^{
+            // Use when fetching text data
+            // Use when fetching binary data
+            NSData *responseData = [request responseData];
+            
+            NSXMLParser *parser = [[NSXMLParser alloc] initWithData:responseData];
+            [parser setDelegate:self];
+            isStartMessage_ = NO;
+            BOOL result = [parser parse];
+            if (!result) {
+                NSBubbleData *sayBubble = [NSBubbleData dataWithText:[[parser parserError] localizedDescription] date:[NSDate dateWithTimeIntervalSinceNow:0] type:BubbleTypeSomeoneElse];
+                sayBubble.avatar = [UIImage imageNamed:@"avatar1.png"];
+                bubbleTable.typingBubble = NSBubbleTypingTypeNobody;
+                [self addMessageToSession:sayBubble needStore:NO];
+                [self scrollToBottomAnimated:YES];
+            }
+            
+        }];
+        [request setFailedBlock:^{
+            NSError *error = [request error];
+            NSBubbleData *sayBubble = [NSBubbleData dataWithText:[error localizedDescription] date:[NSDate dateWithTimeIntervalSinceNow:0] type:BubbleTypeSomeoneElse];
+            sayBubble.avatar = [UIImage imageNamed:@"avatar1.png"];
+            bubbleTable.typingBubble = NSBubbleTypingTypeNobody;
+            [self addMessageToSession:sayBubble needStore:NO];
+            [self scrollToBottomAnimated:YES];
+            
+        }];
+        [request startAsynchronous];
+    }
+    else {
+        [textField.textView resignFirstResponder];
+    }
 }
 
+
+- (void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName attributes:(NSDictionary *)attributeDict {
+    NSLog(@"start Element %@",elementName);
+    if ([elementName isEqualToString:@"that"] || [elementName isEqualToString:@"message"]) {
+        isStartMessage_ = YES;
+        messageData_ = [[NSMutableString alloc] init];
+
+    }
+}
+
+- (void)parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName {
+    NSLog(@"end Element %@",elementName);
+    if ([elementName isEqualToString:@"that"] || [elementName isEqualToString:@"message"]) {
+        isStartMessage_ = NO;
+        NSBubbleData *sayBubble = [NSBubbleData dataWithText:messageData_ date:[NSDate dateWithTimeIntervalSinceNow:0] type:BubbleTypeSomeoneElse];
+        sayBubble.avatar = [UIImage imageNamed:@"avatar1.png"];
+        bubbleTable.typingBubble = NSBubbleTypingTypeNobody;
+        [self addMessageToSession:sayBubble needStore:YES];
+        [self scrollToBottomAnimated:YES];
+        
+    }}
+
+- (void)parser:(NSXMLParser *)parser foundCharacters:(NSString *)string {
+    NSLog(@"string:%@",string);
+    if (isStartMessage_) {
+        [messageData_ appendString:string];
+    }
+
+}
 @end
