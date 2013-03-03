@@ -71,8 +71,23 @@
     
     // Keyboard events
     
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWasShown:) name:UIKeyboardWillShowNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillBeHidden:) name:UIKeyboardWillHideNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+    
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardDidShow:) name:UIKeyboardDidShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardDidHide:) name:UIKeyboardDidHideNotification object:nil];
+    
+    
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardWillShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardWillHideNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardDidShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardDidHideNotification object:nil];
+    
+    
 }
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
@@ -94,38 +109,73 @@
 
 #pragma mark - Keyboard events
 
-- (void)keyboardWasShown:(NSNotification*)aNotification
+- (void)keyboardWillShow:(NSNotification*)aNotification
 {
-    NSDictionary* info = [aNotification userInfo];
-    CGSize kbSize = [[info objectForKey:UIKeyboardFrameBeginUserInfoKey] CGRectValue].size;
-
-    [UIView animateWithDuration:0.2f animations:^{
-        
-        CGRect frame = textInputView.frame;
-        frame.origin.y -= kbSize.height;
-        textInputView.frame = frame;
-        
-        frame = bubbleTable.frame;
-        frame.size.height -= kbSize.height;
-        bubbleTable.frame = frame;
-    }];
+    
+    CGRect keyboardRect = [[aNotification.userInfo objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue];
+	UIViewAnimationCurve curve = [[aNotification.userInfo objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
+	double duration = [[aNotification.userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey] doubleValue];
+    
+	[UIView beginAnimations:@"keyboardWillShowHide" context:nil];
+	[UIView setAnimationCurve:curve];
+	[UIView setAnimationDuration:duration];
+    
+    
+    CGRect frame = textInputView.frame;
+    frame.origin.y = self.view.frame.size.height - keyboardRect.size.height - frame.size.height;
+    textInputView.frame = frame;
+    
+    frame = bubbleTable.frame;
+    frame.size.height = self.view.frame.size.height - textInputView.frame.size.height - keyboardRect.size.height;
+    
+    bubbleTable.frame = frame;
+    
+    
+    
+    [UIView commitAnimations];
+    
 }
 
-- (void)keyboardWillBeHidden:(NSNotification*)aNotification
+- (void)keyboardDidHide:(NSNotification*)aNotification {
+    CGPoint bottomOffset = CGPointMake(0, bubbleTable.contentSize.height - bubbleTable.bounds.size.height);
+    [bubbleTable setContentOffset:bottomOffset animated:YES];
+}
+
+- (void)keyboardDidShow:(NSNotification*)aNotification {
+    CGPoint bottomOffset = CGPointMake(0, bubbleTable.contentSize.height - bubbleTable.bounds.size.height);
+    [bubbleTable setContentOffset:bottomOffset animated:YES];
+}
+
+
+
+- (void)keyboardWillHide:(NSNotification*)aNotification
 {
-    NSDictionary* info = [aNotification userInfo];
-    CGSize kbSize = [[info objectForKey:UIKeyboardFrameBeginUserInfoKey] CGRectValue].size;
     
-    [UIView animateWithDuration:0.2f animations:^{
-        
-        CGRect frame = textInputView.frame;
-        frame.origin.y += kbSize.height;
-        textInputView.frame = frame;
-        
-        frame = bubbleTable.frame;
-        frame.size.height += kbSize.height;
-        bubbleTable.frame = frame;
-    }];
+	UIViewAnimationCurve curve = [[aNotification.userInfo objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
+	double duration = [[aNotification.userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey] doubleValue];
+    
+	[UIView beginAnimations:@"keyboardWillShowHide" context:nil];
+	[UIView setAnimationCurve:curve];
+	[UIView setAnimationDuration:duration];
+    
+    
+    
+    
+    CGRect frame = textInputView.frame;
+    frame.origin.y = self.view.frame.size.height - frame.size.height;
+    textInputView.frame = frame;
+    
+    frame = bubbleTable.frame;
+    frame.size.height = self.view.frame.size.height -textInputView.frame.size.height;
+    bubbleTable.frame = frame;
+    
+    
+    [UIView commitAnimations];
+    
+    
+    
+    
+    
 }
 
 #pragma mark - Actions

@@ -10,7 +10,7 @@
 
 @interface UIBubbleTypingTableViewCell ()
 
-@property (nonatomic, retain) UIImageView *typingImageView;
+@property (nonatomic, strong) UIImageView *typingImageView;
 
 @end
 

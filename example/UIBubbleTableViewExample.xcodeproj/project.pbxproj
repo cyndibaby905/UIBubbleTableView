@@ -339,6 +339,7 @@
 		76ED207D15BF096C00E186D3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "UIBubbleTableViewExample/UIBubbleTableViewExample-Prefix.pch";
 				INFOPLIST_FILE = "UIBubbleTableViewExample/UIBubbleTableViewExample-Info.plist";
@@ -350,6 +351,7 @@
 		76ED207E15BF096C00E186D3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "UIBubbleTableViewExample/UIBubbleTableViewExample-Prefix.pch";
 				INFOPLIST_FILE = "UIBubbleTableViewExample/UIBubbleTableViewExample-Info.plist";

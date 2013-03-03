@@ -10,7 +10,7 @@
 
 @interface UIBubbleHeaderTableViewCell ()
 
-@property (nonatomic, retain) UILabel *label;
+@property (nonatomic, strong) UILabel *label;
 
 @end
 

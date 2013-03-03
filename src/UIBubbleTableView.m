@@ -15,7 +15,7 @@
 
 @interface UIBubbleTableView ()
 
-@property (nonatomic, retain) NSMutableArray *bubbleSection;
+@property (nonatomic, strong) NSMutableArray *bubbleSection;
 
 @end
 

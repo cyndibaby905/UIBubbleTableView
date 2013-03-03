@@ -14,9 +14,9 @@
 
 @interface UIBubbleTableViewCell ()
 
-@property (nonatomic, retain) UIView *customView;
-@property (nonatomic, retain) UIImageView *bubbleImage;
-@property (nonatomic, retain) UIImageView *avatarImage;
+@property (nonatomic, strong) UIView *customView;
+@property (nonatomic, strong) UIImageView *bubbleImage;
+@property (nonatomic, strong) UIImageView *avatarImage;
 
 - (void) setupInternalData;
 
