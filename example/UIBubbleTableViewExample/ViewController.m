@@ -116,23 +116,24 @@
 	UIViewAnimationCurve curve = [[aNotification.userInfo objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
 	double duration = [[aNotification.userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey] doubleValue];
     
-	[UIView beginAnimations:@"keyboardWillShowHide" context:nil];
 	[UIView setAnimationCurve:curve];
-	[UIView setAnimationDuration:duration];
-    
-    
-    CGRect frame = textInputView.frame;
-    frame.origin.y = self.view.frame.size.height - keyboardRect.size.height - frame.size.height;
-    textInputView.frame = frame;
-    
-    frame = bubbleTable.frame;
-    frame.size.height = self.view.frame.size.height - textInputView.frame.size.height - keyboardRect.size.height;
-    
-    bubbleTable.frame = frame;
     
     
     
-    [UIView commitAnimations];
+    
+    [UIView animateWithDuration:duration animations:^{
+        CGRect frame = textInputView.frame;
+        frame.origin.y = self.view.frame.size.height - keyboardRect.size.height - frame.size.height;
+        textInputView.frame = frame;
+        
+        frame = bubbleTable.frame;
+        frame.size.height = self.view.frame.size.height - textInputView.frame.size.height - keyboardRect.size.height;
+        
+        bubbleTable.frame = frame;
+    }];
+    
+    
+    
     
 }
 
@@ -154,23 +155,25 @@
 	UIViewAnimationCurve curve = [[aNotification.userInfo objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
 	double duration = [[aNotification.userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey] doubleValue];
     
-	[UIView beginAnimations:@"keyboardWillShowHide" context:nil];
+    
+    
 	[UIView setAnimationCurve:curve];
-	[UIView setAnimationDuration:duration];
+    
+    [UIView animateWithDuration:duration animations:^{
+        CGRect frame = textInputView.frame;
+        frame.origin.y = self.view.frame.size.height - frame.size.height;
+        textInputView.frame = frame;
+        
+        frame = bubbleTable.frame;
+        frame.size.height = self.view.frame.size.height -textInputView.frame.size.height;
+        bubbleTable.frame = frame;
+        
+    }];
     
     
     
     
-    CGRect frame = textInputView.frame;
-    frame.origin.y = self.view.frame.size.height - frame.size.height;
-    textInputView.frame = frame;
     
-    frame = bubbleTable.frame;
-    frame.size.height = self.view.frame.size.height -textInputView.frame.size.height;
-    bubbleTable.frame = frame;
-    
-    
-    [UIView commitAnimations];
     
     
     
