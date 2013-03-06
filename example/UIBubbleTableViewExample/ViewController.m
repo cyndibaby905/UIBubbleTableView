@@ -22,6 +22,7 @@
 #import "NSString+MessagesView.h"
 #import "ASIHTTPRequest.h"
 #import "NSString+URLEncoding.h"
+#define kConversationHistoryDiskPath @"kConversationHistoryDiskPath"
 
 @interface ViewController ()<UITextViewDelegate,NSXMLParserDelegate>
 {
@@ -30,6 +31,7 @@
     IBOutlet MessageInputView *textField;
     BOOL isStartMessage_;
     NSMutableString *messageData_;
+    NSMutableArray *archiveData;
     NSMutableArray *bubbleData;
 }
 @property (assign, nonatomic) CGFloat previousTextViewContentHeight;
@@ -48,14 +50,26 @@
     
     NSBubbleData *heyBubble = [NSBubbleData dataWithText:@"Hey, halloween is soon" date:[NSDate dateWithTimeIntervalSinceNow:-300] type:BubbleTypeSomeoneElse];
     heyBubble.avatar = [UIImage imageNamed:@"avatar1.png"];
+    heyBubble.needArchive = NO;
 
     NSBubbleData *photoBubble = [NSBubbleData dataWithImage:[UIImage imageNamed:@"halloween.jpg"] date:[NSDate dateWithTimeIntervalSinceNow:-290] type:BubbleTypeSomeoneElse];
     photoBubble.avatar = [UIImage imageNamed:@"avatar1.png"];
+    photoBubble.needArchive = NO;
     
     NSBubbleData *replyBubble = [NSBubbleData dataWithText:@"Wow.. Really cool picture out there. iPhone 5 has really nice camera, yeah?" date:[NSDate dateWithTimeIntervalSinceNow:-5] type:BubbleTypeMine];
     replyBubble.avatar = nil;
+    replyBubble.needArchive = NO;
     
-    bubbleData = [[NSMutableArray alloc] initWithObjects:heyBubble, photoBubble, replyBubble, nil];
+    if (![self readFromDisk]) {
+        bubbleData = [[NSMutableArray alloc] initWithObjects:heyBubble,photoBubble,replyBubble, nil];
+        archiveData = [[NSMutableArray alloc] init];
+    }
+    else {
+        archiveData = [[NSMutableArray alloc] initWithArray:bubbleData];
+    }
+    
+    
+    
     bubbleTable.bubbleDataSource = self;
     
     // The line below sets the snap interval in seconds. This defines how the bubbles will be grouped in time.
@@ -108,7 +122,55 @@
 - (void)addMessageToSession:(NSBubbleData*) data needStore:(BOOL)stored {
     [bubbleData addObject:data];
     [bubbleTable reloadData];
+    if (stored) {
+        data.needArchive = YES;
+        [archiveData addObject:data];
+        [self writeToDisk];
+    }else {
+        data.needArchive = NO;
+
+    }
 }
+
+- (BOOL)writeToDisk;
+{
+       
+    NSMutableData *data = [[NSMutableData alloc] init];
+    NSKeyedArchiver *archiver = [[NSKeyedArchiver alloc]
+                                 initForWritingWithMutableData:data];
+    [archiver encodeObject:archiveData forKey:kConversationHistoryDiskPath];
+    [archiver finishEncoding];
+    return [data writeToFile:[self diskPath] atomically:YES];
+}
+
+- (NSString *)diskPath
+{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *path = [paths objectAtIndex:0];
+    return [path stringByAppendingPathComponent:kConversationHistoryDiskPath];
+}
+
+
+- (BOOL)readFromDisk
+{
+    NSString *path = [self diskPath];
+    
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path])
+    {
+        return NO;
+    }
+    
+    NSData *data = [[NSMutableData alloc]
+                    initWithContentsOfFile:[self diskPath]];
+    NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc]
+                                     initForReadingWithData:data];
+    NSArray *array = [unarchiver decodeObjectForKey:kConversationHistoryDiskPath];
+    [unarchiver finishDecoding];
+    
+    bubbleData = [[NSMutableArray alloc] initWithArray:array];
+    return YES;
+}
+
 
 
 
@@ -116,7 +178,15 @@
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
-    return (interfaceOrientation != UIInterfaceOrientationPortraitUpsideDown);
+    return (interfaceOrientation == UIInterfaceOrientationPortraitUpsideDown) || (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+- (BOOL)shouldAutorotate {
+    return YES;
+}
+
+- (NSUInteger)supportedInterfaceOrientations {
+    return UIInterfaceOrientationMaskPortrait;
 }
 
 #pragma mark - UIBubbleTableViewDataSource implementation
@@ -188,8 +258,11 @@
 
 - (void)scrollToBottomAnimated:(BOOL)animated
 {
-    CGPoint bottomOffset = CGPointMake(0, bubbleTable.contentSize.height - bubbleTable.bounds.size.height);
-    [bubbleTable setContentOffset:bottomOffset animated:animated];
+    if (bubbleTable.contentSize.height >  bubbleTable.bounds.size.height) {
+        CGPoint bottomOffset = CGPointMake(0, bubbleTable.contentSize.height - bubbleTable.bounds.size.height);
+        [bubbleTable setContentOffset:bottomOffset animated:animated];
+    }
+    
 }
 
 #pragma mark - Keyboard events
@@ -263,14 +336,15 @@
 {
     NSString *inputtedData = [textField.textView.text trimWhitespace];
     if (inputtedData.length) {
+        [self scrollToBottomAnimated:YES];
         textField.sendButton.enabled = NO;
         bubbleTable.typingBubble = NSBubbleTypingTypeNobody;
         
         NSBubbleData *sayBubble = [NSBubbleData dataWithText:inputtedData date:[NSDate dateWithTimeIntervalSinceNow:0] type:BubbleTypeMine];
         bubbleTable.typingBubble = NSBubbleTypingTypeSomebody;
         [self addMessageToSession:sayBubble needStore:YES];
-
         
+
         NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"http://www.pandorabots.com/pandora/talk-xml?botid=9e6134cc8e345ec6&input=%@",[inputtedData encodedURLParameterString]]];
         
         textField.textView.text = @"";

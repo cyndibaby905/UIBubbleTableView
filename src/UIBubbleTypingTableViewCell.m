@@ -50,6 +50,22 @@
     }
     
     self.typingImageView.image = bubbleImage;
+    
+    
+   
+    self.typingImageView.animationImages = [NSArray arrayWithObjects:
+                                         [UIImage imageNamed:@"typingSomeone-1.png"],
+                                         [UIImage imageNamed:@"typingSomeone-2.png"],
+                                         [UIImage imageNamed:@"typingSomeone-3.png"],
+                                         [UIImage imageNamed:@"typingSomeone-2.png"],
+
+                                          nil];
+    self.typingImageView.animationDuration = 2.f;
+    
+    self.typingImageView.animationRepeatCount = 0;
+    [self.typingImageView startAnimating];
+    
+    
     self.typingImageView.frame = CGRectMake(x, 4, 73, 31);
 }
 

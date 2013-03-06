@@ -20,6 +20,28 @@
 @synthesize view = _view;
 @synthesize insets = _insets;
 @synthesize avatar = _avatar;
+@synthesize text = _text;
+@synthesize needArchive = _needArchive;
+- (void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:self.date forKey:@"date"];
+    [aCoder encodeInt:self.type forKey:@"type"];
+    [aCoder encodeObject:self.text forKey:@"text"];
+}
+
+- (id)initWithCoder:(NSCoder *)aDecoder {
+    
+    self = [self initWithText:[aDecoder decodeObjectForKey:@"text"] date:[aDecoder decodeObjectForKey:@"date"] type:[aDecoder decodeIntForKey:@"type"]];
+    
+    
+    if (self) {
+        if (_type) {
+            self.avatar = [UIImage imageNamed:@"avatar1.png"];
+        }
+        _needArchive = YES;
+
+    }
+    return self;
+}
 
 #pragma mark - Lifecycle
 
@@ -53,6 +75,7 @@ const UIEdgeInsets textInsetsSomeone = {5, 15, 11, 10};
 
 - (id)initWithText:(NSString *)text date:(NSDate *)date type:(NSBubbleType)type
 {
+    _text = text;
     UIFont *font = [UIFont systemFontOfSize:[UIFont systemFontSize]];
     CGSize size = [(text ? text : @"") sizeWithFont:font constrainedToSize:CGSizeMake(220, 9999) lineBreakMode:NSLineBreakByWordWrapping];
     
